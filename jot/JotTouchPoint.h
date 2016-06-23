@@ -40,7 +40,7 @@
  *
  *  @return An instance of JotTouchPoint
  */
-+ (instancetype)withPoint:(CGPoint)point;
++ (instancetype)withPoint:(CGPoint)point scaleFactor:(CGFloat)scaleFactor;
 
 /**
  *  Calculates the velocity between two points, based on their locations

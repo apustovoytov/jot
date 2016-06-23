@@ -22,6 +22,7 @@ NSString const* kUndoArray = @"UndoArray";
 @interface JotDrawView ()
 
 @property (nonatomic, strong) UIImage *cachedImage;
+@property (nonatomic, strong) UIImage *imageToBeDrawnOn;
 
 @property (nonatomic, strong) NSMutableArray <JotTouchObject*> *pathsArray;
 @property (nonatomic, strong) NSMutableArray <NSNumber*> *undoArray;
@@ -32,6 +33,7 @@ NSString const* kUndoArray = @"UndoArray";
 @property (nonatomic, assign) CGFloat lastVelocity;
 @property (nonatomic, assign) CGFloat lastWidth;
 @property (nonatomic, assign) CGFloat initialVelocity;
+@property (nonatomic, assign) CGFloat outputScaleFactor;
 
 @end
 
@@ -63,6 +65,12 @@ NSString const* kUndoArray = @"UndoArray";
     return self;
 }
 
+- (void)setupForImage:(UIImage *)image withScaleFactor:(CGFloat)outputScaleFactor
+{
+    self.imageToBeDrawnOn = image;
+    self.outputScaleFactor = outputScaleFactor;
+}
+
 #pragma mark - Undo
 
 - (void)clearDrawing
@@ -90,7 +98,12 @@ NSString const* kUndoArray = @"UndoArray";
 	if (self.undoIndex > 0) {
 		self.undoIndex -= 1;
 		[self refreshBitmap];
-	}
+        if (self.undoIndex == 0) {
+            if ([self.delegate respondsToSelector:@selector(shouldDisableUndo)]) {
+                [self.delegate shouldDisableUndo];
+            }
+        }
+    }
 }
 
 - (void)redo {
@@ -103,6 +116,9 @@ NSString const* kUndoArray = @"UndoArray";
 - (void)undoAddState {
 	[self.undoArray addObject:@(self.pathsArray.count)];
 	self.undoIndex = self.undoArray.count-1;
+    if ([self.delegate respondsToSelector:@selector(shouldEnableUndo)]) {
+        [self.delegate shouldEnableUndo];
+    }
 }
 
 - (void)clearRedo {
@@ -142,7 +158,8 @@ NSString const* kUndoArray = @"UndoArray";
     self.lastWidth = self.strokeWidth;
     self.pointsCounter = 0;
     [self.pointsArray removeAllObjects];
-	JotTouchPoint *touchPoint = [JotTouchPoint withPoint:point];
+	JotTouchPoint *touchPoint = [JotTouchPoint withPoint:point
+                                             scaleFactor:self.outputScaleFactor];
     [self.pointsArray addObject:touchPoint];
 	
 	touchPoint.strokeWidth = self.strokeWidth;
@@ -158,17 +175,19 @@ NSString const* kUndoArray = @"UndoArray";
 - (void)drawTouchMovedToPoint:(CGPoint)touchPoint
 {
     self.pointsCounter += 1;
-    [self.pointsArray addObject:[JotTouchPoint withPoint:touchPoint]];
+    [self.pointsArray addObject:[JotTouchPoint withPoint:touchPoint scaleFactor:self.outputScaleFactor]];
     
     if (self.pointsCounter == 4) {
         
         self.pointsArray[3] = [JotTouchPoint withPoint:CGPointMake(([self.pointsArray[2] CGPointValue].x + [self.pointsArray[4] CGPointValue].x)/2.f,
-                                                                   ([self.pointsArray[2] CGPointValue].y + [self.pointsArray[4] CGPointValue].y)/2.f)];
+                                                                   ([self.pointsArray[2] CGPointValue].y + [self.pointsArray[4] CGPointValue].y)/2.f)
+                                           scaleFactor:self.outputScaleFactor];
 		
 		JotTouchBezier *bezierPath = [JotTouchBezier withStartPoint:[self.pointsArray[0] CGPointValue]
 														   endPoint:[self.pointsArray[3] CGPointValue]
 													  controlPoint1:[self.pointsArray[1] CGPointValue]
-													  controlPoint2:[self.pointsArray[2] CGPointValue]];
+													  controlPoint2:[self.pointsArray[2] CGPointValue]
+                                                        scaleFactor:self.outputScaleFactor];
 		bezierPath.strokeColor = self.strokeColor;
 		bezierPath.constantWidth = self.constantStrokeWidth;
 		
@@ -258,7 +277,7 @@ NSString const* kUndoArray = @"UndoArray";
 	for (int i=0; i < pathArrayUndoedCount; i++) {
 		JotTouchObject *touchObject = self.pathsArray[i];
 		if (CGRectIntersectsRect(rect, touchObject.rect)) {
-			[touchObject jotDraw];
+			[touchObject jotDrawWithScaling:NO];
 			drawCalls++;
 		}
 	}
@@ -278,9 +297,16 @@ NSString const* kUndoArray = @"UndoArray";
 						backgroundImage:nil];
 }
 
+- (UIImage *)drawOnImage
+{
+	return [self drawAllPathsImageScale:[UIScreen mainScreen].scale
+                        backgroundImage:self.imageToBeDrawnOn];
+}
+
 - (UIImage *)drawOnImage:(UIImage *)image
 {
-	return [self drawAllPathsImageScale:1.f backgroundImage:image];
+    return [self drawAllPathsImageScale:[UIScreen mainScreen].scale
+                        backgroundImage:image];
 }
 
 - (UIImage *)drawAllPathsImageScale:(CGFloat)scale backgroundImage:(UIImage *)backgroundImage
@@ -311,7 +337,7 @@ NSString const* kUndoArray = @"UndoArray";
 	NSUInteger pathArrayUndoedCount = [self.undoArray[self.undoIndex] integerValue];
 	for (int i=0; i < pathArrayUndoedCount; i++) {
 		JotTouchObject *touchObject = self.pathsArray[i];
-		[touchObject jotDraw];
+		[touchObject jotDrawWithScaling:YES];
 	}
 }
 

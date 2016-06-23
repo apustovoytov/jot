@@ -188,6 +188,14 @@ typedef NS_ENUM(NSUInteger, JotViewState){
 @property (nonatomic, strong, readonly) JotTextEditView *textEditView;
 
 /**
+ *  This setup will prepare the view for any scaling done by the content display mode
+ *  of the UIImageView so the rendered output is scaled properly.
+ *  @param image the background image to draw on top of.
+ *  @param imageViewBounds the bounds of the UIImageView containing background image to draw on top of.
+ */
+- (void)setupForImage:(UIImage *)image imageViewBounds:(CGRect)imageViewBounds;
+
+/**
  *  Clears all paths from the drawing in and sets the text to an empty string, giving a blank slate.
  */
 - (void)clearAll;
@@ -219,13 +227,11 @@ typedef NS_ENUM(NSUInteger, JotViewState){
 
 /**
  *  Overlays the drawing and text on the given background image at the full
- *  resolution of the image.
- *
- *  @param image The background image to draw on top of.
+ *  resolution of the image provided in the UIImageView on setup.
  *
  *  @return An image of the rendered drawing and text on the background image.
  */
-- (UIImage *)drawOnImage:(UIImage *)image;
+- (UIImage *)drawOnImage;
 
 /**
  *  Renders the drawing and text at the view's size with a transparent background.
@@ -294,5 +300,11 @@ typedef NS_ENUM(NSUInteger, JotViewState){
  *  @param labelInfo         the label info serialized
  */
 - (void)jotViewController:(JotViewController *)jotViewController didSelectLabel:(NSDictionary*)labelInfo;
+
+- (void)shouldDisableUndo;
+- (void)shouldEnableUndo;
+
+- (void)drawingBegan;
+- (void)drawingEnded;
 
 @end

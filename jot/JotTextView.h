@@ -131,6 +131,19 @@
 - (void)deleteSelectedLabel;
 
 /**
+ *  Overlays the text on the given background image with the appropriate scaling.
+ *
+ *  @param image The background image to render text on top of.
+ *  @param imageContainerBounds the bounds of the UIImageView containing the image.
+ *
+ *  @return An image of the rendered drawing on the background image.
+ *
+ *  @note Call drawOnImage: in JotViewController
+ *  to trigger this method.
+ */
+- (UIImage *)drawTextOnImage:(UIImage *)image withImageContainerBounds:(CGRect)imageContainerBounds;
+
+/**
  *  Overlays the text on the given background image.
  *
  *  @param image The background image to render text on top of.

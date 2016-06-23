@@ -10,14 +10,20 @@
 
 NSUInteger const kJotDrawStepsPerBezier = 30;
 
+@interface JotTouchBezier ()
+
+@property (nonatomic, assign) CGMutablePathRef scaledPath;
+
+@end
+
 @implementation JotTouchBezier
 
-+ (instancetype)withStartPoint:(CGPoint)startPoint endPoint:(CGPoint)endPoint controlPoint1:(CGPoint)controlPoint1 controlPoint2:(CGPoint)controlPoint2
++ (instancetype)withStartPoint:(CGPoint)startPoint endPoint:(CGPoint)endPoint controlPoint1:(CGPoint)controlPoint1 controlPoint2:(CGPoint)controlPoint2 scaleFactor:(CGFloat)scaleFactor
 {
-	return [[JotTouchBezier alloc] initWithStartPoint:startPoint endPoint:endPoint controlPoint1:controlPoint1 controlPoint2:controlPoint2];
+	return [[JotTouchBezier alloc] initWithStartPoint:startPoint endPoint:endPoint controlPoint1:controlPoint1 controlPoint2:controlPoint2 scaleFactor:scaleFactor];
 }
 
-- (instancetype)initWithStartPoint:(CGPoint)startPoint endPoint:(CGPoint)endPoint controlPoint1:(CGPoint)controlPoint1 controlPoint2:(CGPoint)controlPoint2
+- (instancetype)initWithStartPoint:(CGPoint)startPoint endPoint:(CGPoint)endPoint controlPoint1:(CGPoint)controlPoint1 controlPoint2:(CGPoint)controlPoint2 scaleFactor:(CGFloat)scaleFactor
 {
 	self = [super init];
 	if (self) {
@@ -25,6 +31,7 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 		self.endPoint = endPoint;
 		self.controlPoint1 = controlPoint1;
 		self.controlPoint2 = controlPoint2;
+        self.outputScaleFactor = scaleFactor;
 		[self generatePath];
 	}
 	return self;
@@ -35,13 +42,18 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 	CGPathRelease(_path);
 }
 
-- (void)jotDraw
+- (void)jotDrawWithScaling:(BOOL)shouldScale
 {
     if (self.constantWidth) {
-		[self drawStrategy1];
+		[self drawStrategy1WithScaling:shouldScale];
     } else {
-		[self drawStrategy2];
+		[self drawStrategy2WithScaling:shouldScale];
     }
+}
+
+- (CGMutablePathRef)scaledPath {
+    CGAffineTransform scaleTransform = CGAffineTransformMakeScale(self.outputScaleFactor, self.outputScaleFactor);
+    return CGPathCreateMutableCopyByTransformingPath(self.path, &scaleTransform);
 }
 
 - (void)generatePath {
@@ -51,24 +63,37 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 	CGPathAddCurveToPoint(_path, NULL, self.controlPoint1.x, self.controlPoint1.y, self.controlPoint2.x, self.controlPoint2.y, self.endPoint.x, self.endPoint.y);
 }
 
-- (void)drawStrategy1 {
+- (void)drawStrategy1WithScaling:(BOOL)shouldScale {
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	if (!context) {
 		return;
 	}
-	CGContextAddPath(context, _path);
+    CGMutablePathRef path = shouldScale ? self.scaledPath : _path;
+	CGContextAddPath(context, path);
 	CGContextSetLineWidth(context, self.startWidth);
 	CGContextSetLineCap(context, kCGLineCapRound);
 	[self.strokeColor setStroke];
 	CGContextStrokePath(context);
 }
 
-- (void)drawStrategy2 {
+- (void)drawStrategy2WithScaling:(BOOL)shouldScale {
 	CGContextRef context = UIGraphicsGetCurrentContext();
 	if (!context) {
 		return;
 	}
-	CGFloat widthDelta = self.endWidth - self.startWidth;
+    
+    CGFloat scaleFactor = shouldScale ? self.outputScaleFactor : 1.f;
+    CGPoint scaledStartPoint = CGPointMake(self.startPoint.x * scaleFactor,
+                                           self.startPoint.y * scaleFactor);
+    CGPoint scaledEndPoint = CGPointMake(self.endPoint.x * scaleFactor,
+                                         self.endPoint.y * scaleFactor);
+    CGPoint scaledControlPoint1 = CGPointMake(self.controlPoint1.x * scaleFactor,
+                                              self.controlPoint1.y * scaleFactor);
+    CGPoint scaledControlPoint2 = CGPointMake(self.controlPoint2.x * scaleFactor,
+                                              self.controlPoint2.y * scaleFactor);
+    CGFloat scaledStartWidth = self.startWidth * scaleFactor;
+    CGFloat scaledEndWidth = self.endWidth * scaleFactor;
+	CGFloat widthDelta = scaledEndWidth - scaledStartWidth;
 	
 	[self.strokeColor setStroke];
 	CGContextSetLineCap(context, kCGLineCapRound);
@@ -82,17 +107,17 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 		CGFloat uu = u * u;
 		CGFloat uuu = uu * u;
 		
-		CGFloat x = uuu * self.startPoint.x;
-		x += 3 * uu * t * self.controlPoint1.x;
-		x += 3 * u * tt * self.controlPoint2.x;
-		x += ttt * self.endPoint.x;
+		CGFloat x = uuu * scaledStartPoint.x;
+		x += 3 * uu * t * scaledControlPoint1.x;
+		x += 3 * u * tt * scaledControlPoint2.x;
+		x += ttt * scaledEndPoint.x;
 		
-		CGFloat y = uuu * self.startPoint.y;
-		y += 3 * uu * t * self.controlPoint1.y;
-		y += 3 * u * tt * self.controlPoint2.y;
-		y += ttt * self.endPoint.y;
+		CGFloat y = uuu * scaledStartPoint.y;
+		y += 3 * uu * t * scaledControlPoint1.y;
+		y += 3 * u * tt * scaledControlPoint2.y;
+		y += ttt * scaledEndPoint.y;
 		
-		CGFloat pointWidth = self.startWidth + (ttt * widthDelta);
+		CGFloat pointWidth = scaledStartWidth + (ttt * widthDelta);
 		
 		if (i > 0) {
 			CGContextAddLineToPoint(context, x, y);
@@ -102,7 +127,6 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 		CGContextMoveToPoint(context, x, y);
 	}
 }
-
 
 - (CGRect)rect {
 	CGRect boundingBox = CGPathGetBoundingBox(_path);
@@ -120,6 +144,7 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 	dic[kPointBControl] = [NSValue valueWithCGPoint:self.controlPoint2];
 	dic[kStrokeStartWidth]	= @(self.startWidth);
 	dic[kStrokeEndWidth]	= self.constantWidth?@(self.startWidth):@(self.endWidth);
+    dic[kOutputScaleFactor]	= @(self.outputScaleFactor);
 	
 	return dic;
 }
@@ -146,6 +171,9 @@ NSUInteger const kJotDrawStepsPerBezier = 30;
 	if (dictionary[kStrokeEndWidth]) {
 		self.endWidth = [dictionary[kStrokeEndWidth] floatValue];
 	}
+    if (dictionary[kOutputScaleFactor]) {
+        self.outputScaleFactor = [dictionary[kOutputScaleFactor] floatValue];
+    }
 	self.constantWidth = (self.startWidth == self.endWidth);
 }
 

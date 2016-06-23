@@ -19,6 +19,8 @@ NSString *const kStrokeWidth = @"StrokeWidth";
 NSString *const kStrokeStartWidth = @"StrokeStartWidth";
 NSString *const kStrokeEndWidth = @"StrokeEndWidth";
 NSString *const kIsDashed = @"IsDashed";
+NSString *const kOutputScaleFactor = @"OutputScaleFactor";
+
 
 @implementation JotTouchObject
 
@@ -27,8 +29,14 @@ NSString *const kIsDashed = @"IsDashed";
 	return CGRectZero;
 }
 
-- (void)jotDraw {
+- (void)jotDrawWithScaling:(BOOL)shouldScale {
 	NSAssert(NO, @"this method should be overriden in subclass");
+}
+
+#pragma mark - Properties
+
+- (CGFloat)outputScaleFactor {
+    return _outputScaleFactor <= 0 ? 1 : _outputScaleFactor;
 }
 
 #pragma mark - Serialization

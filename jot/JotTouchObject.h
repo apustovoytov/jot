@@ -20,8 +20,15 @@ extern NSString *const kStrokeWidth;
 extern NSString *const kStrokeStartWidth;
 extern NSString *const kStrokeEndWidth;
 extern NSString *const kIsDashed;
+extern NSString *const kOutputScaleFactor;
 
 @interface JotTouchObject : NSObject
+
+/**
+ *  The amount to scale when rendering the output drawing onto an image
+    @note This is used when drawing onto an image that has been scaled to fit inside a view
+ */
+@property (nonatomic, assign) CGFloat outputScaleFactor;
 
 /**
  *  The stroke color of the object
@@ -40,7 +47,7 @@ extern NSString *const kIsDashed;
  *
  *  @note this method should be overriden in subclasses
  */
-- (void)jotDraw;
+- (void)jotDrawWithScaling:(BOOL)shouldScale;
 
 #pragma mark - Serialization
 

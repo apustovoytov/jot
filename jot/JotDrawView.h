@@ -12,11 +12,20 @@
 extern NSString const* kObjects;
 extern NSString const* kUndoArray;
 
+@protocol JotDrawViewDelegate <NSObject>
+
+- (void)shouldDisableUndo;
+- (void)shouldEnableUndo;
+
+@end
+
 /**
  *  Private class to handle touch drawing. Change the properties
  *  in a JotViewController instance to configure this private class.
  */
 @interface JotDrawView : UIView
+
+@property (nonatomic, weak) id<JotDrawViewDelegate> delegate;
 
 /**
  *  Set to YES if you want the stroke width to be constant,
@@ -132,22 +141,37 @@ extern NSString const* kUndoArray;
 - (void)drawLineEndedAtPoint:(CGPoint)touchPoint;
 
 /**
- *  Overlays the drawing on the given background image, rendering
+ *  Initialize the view with an UImageView to be drawn on.
+ *
+ *  @param image The background image to be drawn on.
+ *  @param outputScaleFactor The amount to scale the image when rendering output.
+ *  @note This method only needs to be called if the image being drawn on has been scaled.
+ */
+- (void)setupForImage:(UIImage *)image withScaleFactor:(CGFloat)outputScaleFactor;
+
+/**
+ *  Overlays the drawing on the image passed in on setup, rendering
  *  the drawing at the full resolution of the image.
  *  The canvas position and the image share the same top left corner and
  *  the resulting image size is the maximum size beetween canvas size and image
  *  size.
  *
- *  @param image The background image to draw on top of.
+ *  @return An image of the rendered drawing on the background image.
+ *
+ *  @note Use this method after the setup.
+ */
+- (UIImage *)drawOnImage;
+
+/**
+ *  Overlays drawing onto the given background image.
+ *  The canvas position and the image share the same top left corner and
+ *  the resulting image size is the maximum size beetween canvas size and image
+ *  size.
  *
  *  @return An image of the rendered drawing on the background image.
  *
- *  @warning While drawing over an UIImageView, be sure to present the image at
- *  full resolution. UIViewContentModeTopLeft content mode should be used instead
- *  of content modes that change the image scale (eg: UIViewContentModeScale*)
- *
  *  @note Call drawOnImage: in JotViewController
- *  to trigger this method.
+ *  to trigger this method. This method does not account for scaling
  */
 - (UIImage *)drawOnImage:(UIImage *)image;
 
